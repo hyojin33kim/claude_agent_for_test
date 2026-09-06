@@ -1,0 +1,16 @@
+{
+  "_comment": "이 내용을 프로젝트의 .claude/settings.json 에 병합하세요.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-commit-refinement-log.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

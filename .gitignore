@@ -1,0 +1,28 @@
+# 스펙 PDF — 저작권 문서, 로컬에만 보관
+.docs/
+
+# 비밀값
+.env
+
+# 가상환경
+.venv/
+venv/
+
+# 압축 원본 (별도 보관용, git에는 안 올림)
+spec2rtl-harness-v2-draft.zip
+
+# Docling 추출 이미지 (용량 큼, 재생성 가능)
+spec_harness/ingest/extracted_images/
+
+# 실제 DB — 스펙 원문(저작권 문서) 포함, public repo에 올리면 안 됨
+# schema.sql로 구조는 공유되고, 데이터는 각자 로컬에서 /ingest-spec으로 재생성
+spec_harness/spec_harness.db
+
+# 진단/실행 로그 및 임시 산출물
+spec_harness/ingest/run.log
+spec_harness/ingest/_dump*.md
+spec_harness/ingest/_dump_markdown.py
+
+# Python
+__pycache__/
+*.pyc
