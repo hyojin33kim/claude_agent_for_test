@@ -57,3 +57,6 @@ post-commit hook이 이 trailer를 파싱해 `refinement_events` 테이블에 �
 - 골든모델 버그 원인 분석은 반드시 `spec-arbiter` 서브에이전트를 통해 판단 (메인 세션 직접 판단 금지).
 - 다이어그램이 관련된 조항은 `clause_images`에서 `vlm_description` 확인 후 참고 (없으면 `diagram-enricher` 먼저 실행).
 - 세션 종료 전 `learning-extractor` 서브에이전트로 이번 세션 학습 내용 정리 + `mistake_patterns` 갱신.
+
+## 9. 작업 파일 위치 규칙
+- 조회 결과 덤프, 진단용 스크립트 등 임시 산출물은 항상 `spec_harness/ingest/` 안에 만들 것. `/tmp` 등 프로젝트 밖 경로 사용 금지 — 다음 세션이 추적/정리할 수 없음.

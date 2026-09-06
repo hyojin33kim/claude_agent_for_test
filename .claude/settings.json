@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-commit-refinement-log.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git remote*)",
+      "Bash(git show*)",
+      "Bash(.venv/bin/python -c*)",
+      "Bash(.venv/bin/python spec_harness/*)",
+      "Bash(cat spec_harness/*)",
+      "Bash(cat .docs/*)",
+      "Bash(grep*)",
+      "Bash(find*)",
+      "Bash(ls*)",
+      "Bash(tree*)",
+      "Bash(wc*)",
+      "Bash(sed -n*)",
+      "Bash(file*)"
+    ]
+  }
+}
