@@ -22,6 +22,9 @@ spec_harness/spec_harness.db
 spec_harness/ingest/run.log
 spec_harness/ingest/_*
 
+# 개인 작업 메모
+overview.txt
+
 # Python
 __pycache__/
 *.pyc
