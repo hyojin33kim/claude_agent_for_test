@@ -1,5 +1,10 @@
 # SpaceWire Spec2RTL — Project Rules (Always Loaded)
 
+## -1. 언어 규칙
+모든 응답(질문, 확인 요청, 진행 상황 보고, 커밋 메시지 설명 등)은 한글로 작성할 것.
+코드, 파일 경로, 커맨드, SQL, 기술 용어(예: clause_id, confidence, phase)는 원문(영문) 그대로 유지.
+사용자가 명시적으로 다른 언어를 요청하지 않는 한 예외 없음.
+
 ## 0. 세션 시작 시 필수 절차
 1. `spec_harness/spec_harness.db` 쿼리하여 현재 Phase(A/B) 진행률, 미검증 조항, 최근 mistake_patterns 확인
 2. `git log --oneline -15` 로 최근 변경 확인
@@ -53,10 +58,67 @@ Phase: A|B
 ```
 post-commit hook이 이 trailer를 파싱해 `refinement_events` 테이블에 자동 INSERT (commit_sha UNIQUE 제약으로 중복 방지).
 
-## 8. 서브에이전트 사용 규칙
+## 9. 실행 컨벤션 (신규 — 반드시 준수, 예측 가능한 권한 관리를 위함)
+
+이 프로젝트의 모든 커맨드/서브에이전트 문서(`.claude/commands/*.md`, `.claude/agents/*.md`)에
+등장하는 SQL/Python 예시는 **지시일 뿐 실행 형태를 규정하지 않는다.** 실제 Bash 실행 시
+아래 고정된 형태만 사용할 것. 형태가 흔들리면 `.claude/settings.json`의 `permissions.allow`
+화이트리스트가 매번 어긋나 불필요한 승인 요청이 반복된다.
+
+### SQL 조회/갱신
+항상 아래 형태로 실행 (heredoc, `python3 -c`, `sqlite3` CLI 등 다른 방식 사용 금지):
+```bash
+.venv/bin/python3 -c "
+import sqlite3
+conn = sqlite3.connect('spec_harness/spec_harness.db')
+cur = conn.cursor()
+cur.execute('''<SQL>''')
+...
+conn.commit()  # 갱신 시에만
+"
+```
+- 인터프리터는 항상 `.venv/bin/python3` (프로젝트 루트 기준 상대경로). `python3`, `.venv/bin/python`(3 없이) 등 변형 금지.
+- 코드는 항상 `-c "..."` 인라인 방식. `<<EOF` heredoc, 파일로 저장 후 실행 등 금지.
+- 출력이 길어서 저장이 필요하면 반드시 프로젝트 내부 경로에 저장 (`spec_harness/ingest/*.txt` 등). `/tmp` 등 작업 디렉토리 밖에 쓰지 말 것 (읽기 차단됨).
+
+### 회귀 테스트 실행
+```bash
+.venv/bin/python3 spw_ref_model_test_v5.py
+```
+파이프(`| tail`, `| head`)가 필요하면 별도 호출로 나눌 것 — 결과를 파일로 저장 후 `cat`/`grep`으로 확인:
+```bash
+.venv/bin/python3 spw_ref_model_test_v5.py > spec_harness/ingest/last_test_run.log 2>&1
+tail -20 spec_harness/ingest/last_test_run.log
+```
+
+### RTL 시뮬레이션
+```bash
+iverilog -g2012 -o spec_harness/ingest/sim_out <파일 목록>
+vvp spec_harness/ingest/sim_out
+```
+`<파일 목록>`은 항상 명시적으로 나열할 것 (glob `*.sv` 금지 — 의도치 않은 파일 포함 방지).
+
+### git 커밋 (다중 라인 trailer 포함)
+항상 아래 고정 heredoc 형태만 사용 (이 형태 하나만 화이트리스트에 등록됨):
+```bash
+git add <파일>
+git commit -m "$(cat <<'EOF'
+<제목>
+
+Spec-citation: ECSS-E-ST-50-12C §<조항>
+Feedback: "<요약>"
+Root-cause: <원인>
+Phase: A|B
+EOF
+)"
+```
+
+### 금지 사항
+- 같은 작업(SQL 조회, 테스트 실행, 커밋)에 대해 세션마다 다른 bash 문법을 즉흥적으로 선택하지 말 것.
+- 위 형태로 표현 불가능한 특수한 경우에만 예외적으로 다른 형태를 쓰고, 그 경우 왜 예외가 필요한지 사람에게 먼저 설명할 것.
+
+## 10. 서브에이전트 사용 규칙
 - 골든모델 버그 원인 분석은 반드시 `spec-arbiter` 서브에이전트를 통해 판단 (메인 세션 직접 판단 금지).
 - 다이어그램이 관련된 조항은 `clause_images`에서 `vlm_description` 확인 후 참고 (없으면 `diagram-enricher` 먼저 실행).
 - 세션 종료 전 `learning-extractor` 서브에이전트로 이번 세션 학습 내용 정리 + `mistake_patterns` 갱신.
 
-## 9. 작업 파일 위치 규칙
-- 조회 결과 덤프, 진단용 스크립트 등 임시 산출물은 항상 `spec_harness/ingest/` 안에 만들 것. `/tmp` 등 프로젝트 밖 경로 사용 금지 — 다음 세션이 추적/정리할 수 없음.

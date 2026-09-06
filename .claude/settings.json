@@ -20,10 +20,23 @@
       "Bash(git branch*)",
       "Bash(git remote*)",
       "Bash(git show*)",
-      "Bash(.venv/bin/python -c*)",
-      "Bash(.venv/bin/python spec_harness/*)",
+      "Bash(git add*)",
+      "Bash(git commit -m*)",
+
+      "Bash(.venv/bin/python3 -c*)",
+      "Bash(.venv/bin/python3 spec_harness/*)",
+      "Bash(.venv/bin/python3 spw_ref_model_test_v5.py*)",
+      "Bash(.venv/bin/python3 spec_harness/ingest/docling_ingest.py*)",
+      "Bash(.venv/bin/python3 spec_harness/ingest/vlm_enrich.py*)",
+
+      "Bash(iverilog*)",
+      "Bash(vvp spec_harness/ingest/*)",
+
       "Bash(cat spec_harness/*)",
       "Bash(cat .docs/*)",
+      "Bash(tail spec_harness/*)",
+      "Bash(tail -* spec_harness/*)",
+
       "Bash(grep*)",
       "Bash(find*)",
       "Bash(ls*)",

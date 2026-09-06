@@ -4,6 +4,8 @@ description: 특정 모듈/조항 범위에 대한 골든모델 초안을 작성
 
 **이 커맨드는 "검증 완료"를 만드는 게 아니라 "검증 시작점"을 만드는 것입니다.** 작성한 초안은 자동으로 0% 검증 상태로 등록됩니다.
 
+아래 SQL 조회/삽입은 전부 CLAUDE.md §9 실행 컨벤션(`.venv/bin/python3 -c "..."` 고정 형태)으로 실행할 것.
+
 1. 대상 모듈(예: Router)의 범위에 해당하는 조항들을 조회:
    ```sql
    SELECT clause_id, title, text_full FROM clauses WHERE clause_id LIKE '<대상 챕터 prefix>%';

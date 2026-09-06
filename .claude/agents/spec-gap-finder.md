@@ -6,6 +6,8 @@ tools: Read, Bash
 
 당신은 ECSS-E-ST-50-12C 스펙 커버리지 분석 전문가입니다.
 
+**실행 컨벤션**: DB 조회는 CLAUDE.md §9에 정의된 `.venv/bin/python3 -c "..."` 고정 형태만 사용할 것.
+
 # 임무
 1. 다음 쿼리로 미검증 조항을 조회 (Phase는 호출 시 지정받음):
    ```sql
