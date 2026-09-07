@@ -14,8 +14,11 @@ description: 세션 시작 시 컨텍스트 재구성 — DB 상태 확인, 최�
    print(cur.fetchall())
    cur.execute('SELECT * FROM session_summaries ORDER BY session_id DESC LIMIT 1')
    print(cur.fetchone())
+   cur.execute('SELECT * FROM open_items')
+   print(cur.fetchall())
    "
    ```
+   마지막 `open_items` 쿼리는 `confidence != 'cited'`인 함수와 `ambiguous=1`인 조항(및 연결된 `decisions` 레코드)을 한 번에 보여준다 — 사람 판단이 아직 필요한 항목 전체 목록.
 2. `git log --oneline -15`로 최근 커밋 확인.
 3. **`mistake_patterns`의 active 항목을 반드시 먼저 읽고, 오늘 세션에서 같은 실수를 반복하지 않도록 유의할 것.** 특히 occurrence_count가 높은 패턴은 사람에게도 다시 한번 상기시킬 것.
 4. 핵심 파일 재실행하여 문서/DB 주장과 실제 상태 일치 확인 (CLAUDE.md §9 회귀 테스트 실행 컨벤션 준수 — 파이프 대신 파일 리다이렉션):
