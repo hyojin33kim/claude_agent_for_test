@@ -8,6 +8,8 @@
 .venv/
 venv/
 
+.claude/worktrees
+
 # 압축 원본 (별도 보관용, git에는 안 올림)
 spec2rtl-harness-v2-draft.zip
 
