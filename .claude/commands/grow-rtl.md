@@ -7,10 +7,10 @@ Phase B 루프를 한 사이클 실행합니다. **RTL 파일은 자동 수정�
 1. `spec-gap-finder` 서브에이전트 호출 (phase='B'), 대상은 `status='golden_model_validated'`이면서 아직 `rtl_validated`가 아닌 조항.
 2. 사람에게 목록 제시, 대상 조항 1개 선택받음.
 3. `testcase-writer` 서브에이전트 호출 (phase='B') → RTL 테스트벤치 작성.
-4. iverilog 시뮬레이션 실행:
-   ```
-   iverilog -g2012 -o sim_out <관련 .sv 파일들>
-   vvp sim_out
+4. iverilog 시뮬레이션 실행 (CLAUDE.md §9 실행 컨벤션 준수 — 출력 경로는 항상 `spec_harness/ingest/` 아래):
+   ```bash
+   iverilog -g2012 -o spec_harness/ingest/sim_out <관련 .sv 파일들, 명시적으로 나열>
+   vvp spec_harness/ingest/sim_out
    ```
 5. 골든모델 동일 시나리오 출력과 비교.
 6. 일치 → `verification_status`를 `rtl_validated`로 갱신, 종료.

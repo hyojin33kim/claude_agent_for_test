@@ -38,8 +38,9 @@ def encode_data_character(byte: int) -> dict:
 
 def encode_control_character(control_type: str) -> dict:
     # Spec: §5.4.3.2 — 제어 문자는 4비트(parity + D/C=1 + 2비트 control type)
-    # 주의(assumed): control type 2비트의 전송 비트 순서는 스펙에 명시가 없어
-    # 데이터 문자와 동일하게 LSB first로 가정함 — 확인 필요.
+    # control type 2비트의 전송 순서(LSB first)는 본문에는 명시 없으나 Figure 5-12
+    # 도식의 전송방향 화살표로 직접 확정됨 (spec-arbiter judgment_id=5, 2026-09-07,
+    # verdict=A, confidence=high — Figure 5-11과 동일한 화살표 컨벤션, cited).
     if control_type not in CONTROL_TYPE_CODE:
         raise ValueError(f"unknown control type: {control_type}")
     code = CONTROL_TYPE_CODE[control_type]
@@ -133,15 +134,28 @@ def encode_data_strobe(bitstream: list[int]) -> tuple[list[int], list[int]]:
     return data_signal, strobe_signal
 
 
-def reset_data_strobe_lines(*_args, **_kwargs):
-    # Spec: §5.4.4.c,d,e — ErrorReset 진입 시 Data/Strobe를 리셋하되 동시 전이를
-    # 피하기 위한 지연(delay)이 필요함. 지연 값은 "500ns ~ 구현별 최대 송신 비트 주기"
-    # 범위로만 규정되어 구체적인 알고리즘/값이 확정되지 않음.
-    # 이 골든모델은 아직 시간/클럭 모델을 갖고 있지 않아 이 리셋 시퀀스를 표현할 수 없음.
-    raise NotImplementedError(
-        "TODO: §5.4.4.c-e 리셋 시 Data/Strobe 지연 시퀀스 미구현 - "
-        "시간/클럭 모델 필요, 지연값은 구현 정의 범위(500ns~구현별 최대)라 확인 필요"
-    )
+def reset_data_strobe_lines(delay_ns: float) -> list[tuple[str, int, float]]:
+    # Spec: §5.4.4.d — 송신 중이던 포트가 ErrorReset에 진입하면 strobe→data 또는
+    # data→strobe 중 하나의 순서로, 그 사이에 지연을 두고 리셋해야 함. 스펙이 "or"로
+    # 두 순서를 모두 허용(구현 재량) — 이 골든모델은 §5.4.4.c NOTE의 예시("Strobe를
+    # 먼저 리셋한 뒤 Data를 리셋")를 근거로 strobe-first를 기본값으로 채택함
+    # (confidence=assumed, DECISION-02 참고). 리셋 값은 §5.4.4.b(전원 인가 리셋 시
+    # Data=0,Strobe=0)와 동일하게 0으로 간주(assumed).
+    #
+    # Spec: §5.4.4.e — 지연은 500ns(가장 느린 허용 전송 비트레이트 2Mbps의 주기) 이상
+    # 이어야 함(cited, 하한은 스펙이 숫자로 강제). 상한은 "해당 특정 송신기의 가장 빠른
+    # 전송 시간 주기"로 구현마다 다르다고만 규정되어 스펙 자체에 범용 숫자가 없음 — 이
+    # 골든모델은 상한을 임의로 창작하지 않고 검증하지 않는다(DECISION-02, spec-arbiter
+    # judgment_id=2 판정 근거).
+    if delay_ns < 500:
+        raise ValueError(
+            f"delay_ns={delay_ns} — §5.4.4.e 하한(500ns) 위반: 가장 느린 허용 전송 "
+            "비트레이트(2Mbps)의 주기보다 짧은 지연은 스펙 위반"
+        )
+    return [
+        ("strobe", 0, 0.0),
+        ("data", 0, float(delay_ns)),
+    ]
 
 
 # ============================================================

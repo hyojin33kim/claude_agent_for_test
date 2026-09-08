@@ -46,6 +46,20 @@ CREATE TABLE IF NOT EXISTS verification_status (
   FOREIGN KEY (clause_id) REFERENCES clauses(clause_id)
 );
 
+-- DECISION 레코드 인덱스 (원본은 spec_harness/decision_log/*.md 마크다운 — CLAUDE.md §4 고정 규칙.
+-- 이 테이블은 그 파일들을 clause_id로 조인/조회하기 위한 얇은 메타데이터 인덱스일 뿐,
+-- 서술형 판단 근거(해석 A/B/C, 사람의 최종 채택)를 이 테이블에 옮겨적지 않는다.
+CREATE TABLE IF NOT EXISTS decisions (
+  decision_id TEXT PRIMARY KEY,   -- 'DECISION-01'
+  clause_id TEXT,
+  phase TEXT,                     -- 'A' | 'B'
+  status TEXT,                    -- 'open' | 'closed'
+  file_path TEXT,                 -- 'spec_harness/decision_log/DECISION-01.md'
+  raised_by TEXT,
+  date TEXT,
+  FOREIGN KEY (clause_id) REFERENCES clauses(clause_id)
+);
+
 -- spec-arbiter 판정 캐시 ("전체 재독 + 결과 재사용" 구현체)
 CREATE TABLE IF NOT EXISTS arbiter_judgments (
   judgment_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,3 +131,23 @@ CREATE INDEX IF NOT EXISTS idx_clause_refs_from ON clause_references(from_clause
 CREATE INDEX IF NOT EXISTS idx_verification_status ON verification_status(status, phase);
 CREATE INDEX IF NOT EXISTS idx_arbiter_hash ON arbiter_judgments(question_hash);
 CREATE INDEX IF NOT EXISTS idx_mistake_tag ON mistake_patterns(pattern_tag);
+CREATE INDEX IF NOT EXISTS idx_decisions_clause ON decisions(clause_id);
+
+-- 사람 판단이 필요한 항목(assumed/todo confidence, 모호 조항)을 한 번에 조회하기 위한 VIEW.
+-- 세션 시작 시 이 VIEW만 조회하면 마크다운 인덱스 없이도 항상 최신 상태를 얻는다.
+CREATE VIEW IF NOT EXISTS open_items AS
+SELECT
+  g.function_name,
+  g.spec_citation,
+  g.confidence,
+  g.todo_note,
+  v.clause_id AS ambiguous_clause_id,
+  v.phase AS ambiguous_phase,
+  d.decision_id,
+  d.status AS decision_status
+FROM golden_model_confidence g
+LEFT JOIN verification_status v
+  ON v.ambiguous = 1 AND g.spec_citation LIKE v.clause_id || '%'
+LEFT JOIN decisions d
+  ON d.clause_id = v.clause_id
+WHERE g.confidence != 'cited' OR v.ambiguous = 1;

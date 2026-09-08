@@ -2,15 +2,20 @@
 description: ECSS 스펙 PDF를 Docling으로 파싱하여 spec_harness.db에 최초 적재한다 (1회성, 이후는 증분 갱신).
 ---
 
-1. `spec_harness/ingest/docling_ingest.py`를 실행하여:
+1. `docling_ingest.py`를 실행 (CLAUDE.md §9 실행 컨벤션 준수 — 로그는 프로젝트 내부에 저장):
+   ```bash
+   .venv/bin/python3 spec_harness/ingest/docling_ingest.py > spec_harness/ingest/run.log 2>&1
+   tail -20 spec_harness/ingest/run.log
+   ```
+   이 스크립트가 하는 일:
    - `ECSS-E-ST-50-12C-Rev_1_15May2019_.pdf`를 Docling 표준 파이프라인으로 파싱
    - 조항 텍스트, 계층 구조(parent_clause_id), 페이지 참조를 `clauses` 테이블에 삽입
    - "see §X", "as defined in §Y" 같은 인라인 참조를 파싱하여 `clause_references`에 삽입
    - 이미지/다이어그램은 `generate_picture_images=True`로 추출하여 `clause_images`에 `image_path`만 우선 삽입 (vlm_description은 이 단계에서 NULL로 남김)
 
-2. 적재 후 검증:
-   ```
-   python3 -c "
+2. 적재 후 검증 (CLAUDE.md §9 SQL 실행 컨벤션 준수):
+   ```bash
+   .venv/bin/python3 -c "
    import sqlite3
    conn = sqlite3.connect('spec_harness/spec_harness.db')
    cur = conn.cursor()
