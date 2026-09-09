@@ -58,34 +58,42 @@ Phase: A|B
 ```
 post-commit hook이 이 trailer를 파싱해 `refinement_events` 테이블에 자동 INSERT (commit_sha UNIQUE 제약으로 중복 방지).
 
-## 9. 실행 컨벤션 (신규 — 반드시 준수, 예측 가능한 권한 관리를 위함)
+## 9. 실행 컨벤션 (개정 — 즉석 인라인 코드 금지, 고정 스크립트 사용 필수)
 
-이 프로젝트의 모든 커맨드/서브에이전트 문서(`.claude/commands/*.md`, `.claude/agents/*.md`)에
-등장하는 SQL/Python 예시는 **지시일 뿐 실행 형태를 규정하지 않는다.** 실제 Bash 실행 시
-아래 고정된 형태만 사용할 것. 형태가 흔들리면 `.claude/settings.json`의 `permissions.allow`
-화이트리스트가 매번 어긋나 불필요한 승인 요청이 반복된다.
+**핵심 원칙**: `python3 -c "즉석에서 생성한 코드"` 형태는 매번 코드 내용이 달라지기 때문에,
+auto mode의 분류기가 사전에 안전을 판단할 수 없어 매번 사람 확인을 요구하게 된다.
+이는 auto mode 설정 문제가 아니라 "즉석 생성 코드"라는 방식 자체의 구조적 한계다.
+따라서 **반복되는 DB 조회/갱신은 절대 `-c` 인라인으로 새로 짜지 말고, 아래 고정 스크립트를
+인자만 바꿔서 호출**한다. 코드 내용이 고정되어 있어야 `permissions.allow`가 정적으로
+매칭 가능해지고, 실제로 auto mode의 이점을 누릴 수 있다.
 
-### SQL 조회/갱신
-항상 아래 형태로 실행 (heredoc, `python3 -c`, `sqlite3` CLI 등 다른 방식 사용 금지):
+### 고정 스크립트 목록 (`spec_harness/ingest/`)
+
+| 스크립트 | 용도 |
+|---|---|
+| `check_session_start.py` | 세션 시작 시 검증현황/실수패턴/직전요약/open_items 조회 |
+| `check_clause_status.py --prefix <p> [--phase A\|B]` | 특정 조항 범위의 검증상태/confidence/판정캐시 조회 |
+| `check_clause_text.py --clause-id <id> [--with-refs]` | 조항 원문 재조회 (spec-arbiter용) |
+| `insert_arbiter_judgment.py --clause-id .. --phase .. --verdict .. --confidence .. --question-summary .. --spec-evidence ..` | 판정 결과 저장 |
+| `update_confidence.py --function .. [--confidence ..] [--todo-note ..]` | golden_model_confidence 갱신 |
+| `update_verification_status.py --clause-id .. --phase .. [--status ..] [--ambiguous] [--scenarios ..]` | verification_status 갱신 |
+| `upsert_mistake_pattern.py --tag .. [--description .. --prevention-rule ..]` | 실수 패턴 등록/재발 처리 |
+| `insert_session_summary.py --started-at .. --phase .. [--clauses-touched ..] [--new-errata ..] [--new-decisions ..] [--new-mistake-patterns ..] --next-session-priority ..` | 세션 종료 요약 기록 |
+
+호출 형태는 항상 이렇게 고정:
 ```bash
-.venv/bin/python3 -c "
-import sqlite3
-conn = sqlite3.connect('spec_harness/spec_harness.db')
-cur = conn.cursor()
-cur.execute('''<SQL>''')
-...
-conn.commit()  # 갱신 시에만
-"
+.venv/bin/python3 spec_harness/ingest/<스크립트명>.py --인자 값 --인자 값
 ```
-- 인터프리터는 항상 `.venv/bin/python3` (프로젝트 루트 기준 상대경로). `python3`, `.venv/bin/python`(3 없이) 등 변형 금지.
-- 코드는 항상 `-c "..."` 인라인 방식. `<<EOF` heredoc, 파일로 저장 후 실행 등 금지.
-- 출력이 길어서 저장이 필요하면 반드시 프로젝트 내부 경로에 저장 (`spec_harness/ingest/*.txt` 등). `/tmp` 등 작업 디렉토리 밖에 쓰지 말 것 (읽기 차단됨).
+
+### 위 스크립트로 표현 안 되는 새로운 조회가 필요할 때
+1. 먼저 기존 스크립트에 옵션을 추가해서 대응 가능한지 검토
+2. 정말 새로운 스크립트가 필요하면, 새 `.py` 파일을 `spec_harness/ingest/`에 만들고
+   (`db_utils.py`의 `get_conn()`, `now_iso()`, `print_rows()` 재사용) `.claude/settings.json`의
+   `permissions.allow`에 그 파일 경로 패턴을 등록. **`-c` 인라인으로 임시 처리하고 넘어가지 말 것.**
+3. 스키마 변경(CREATE TABLE 등)처럼 정말 1회성인 작업만 예외적으로 `-c` 인라인 허용,
+   이 경우 반드시 사람에게 "왜 예외가 필요한지" 먼저 설명.
 
 ### 회귀 테스트 실행
-```bash
-.venv/bin/python3 spw_ref_model_test_v5.py
-```
-파이프(`| tail`, `| head`)가 필요하면 별도 호출로 나눌 것 — 결과를 파일로 저장 후 `cat`/`grep`으로 확인:
 ```bash
 .venv/bin/python3 spw_ref_model_test_v5.py > spec_harness/ingest/last_test_run.log 2>&1
 tail -20 spec_harness/ingest/last_test_run.log
@@ -96,10 +104,9 @@ tail -20 spec_harness/ingest/last_test_run.log
 iverilog -g2012 -o spec_harness/ingest/sim_out <파일 목록>
 vvp spec_harness/ingest/sim_out
 ```
-`<파일 목록>`은 항상 명시적으로 나열할 것 (glob `*.sv` 금지 — 의도치 않은 파일 포함 방지).
+`<파일 목록>`은 항상 명시적으로 나열할 것 (glob `*.sv` 금지).
 
 ### git 커밋 (다중 라인 trailer 포함)
-항상 아래 고정 heredoc 형태만 사용 (이 형태 하나만 화이트리스트에 등록됨):
 ```bash
 git add <파일>
 git commit -m "$(cat <<'EOF'
@@ -114,8 +121,15 @@ EOF
 ```
 
 ### 금지 사항
-- 같은 작업(SQL 조회, 테스트 실행, 커밋)에 대해 세션마다 다른 bash 문법을 즉흥적으로 선택하지 말 것.
-- 위 형태로 표현 불가능한 특수한 경우에만 예외적으로 다른 형태를 쓰고, 그 경우 왜 예외가 필요한지 사람에게 먼저 설명할 것.
+- DB 조회/갱신을 `-c` 인라인으로 즉석 작성하지 말 것 (위 고정 스크립트 우선 사용)
+- 같은 작업에 대해 세션마다 다른 bash 문법을 즉흥적으로 선택하지 말 것.
+
+### 이 컨벤션 자체가 지켜지지 않을 때 (신규 — 드리프트 재발 방지)
+- 이 §9와 `spec_harness/ingest/*.py` 고정 스크립트는 **반드시 git에 커밋된 상태를 정본으로 삼는다.**
+  워크트리로 격리해 작업하는 구조상, 커밋되지 않은 변경은 새 워크트리에 반영되지 않고 매번 사라진다.
+  (2026-09-07~08 실제로 이 스크립트 9개가 미커밋 상태로 방치되어 워크트리마다 사라지는 문제 발생 — `mistake_patterns.설정파일-디스크드리프트-미확인` 참고.)
+- 이 섹션이나 고정 스크립트를 새로 만들거나 고쳤다면, **그 세션 안에서 바로 커밋(및 가능하면 push)까지 완료**할 것.
+  "다음에 커밋하겠다"고 미루지 말 것 — 다음 세션은 새 워크트리에서 시작되므로 미커밋 변경을 볼 수 없다.
 
 ## 10. 서브에이전트 사용 규칙
 - 골든모델 버그 원인 분석은 반드시 `spec-arbiter` 서브에이전트를 통해 판단 (메인 세션 직접 판단 금지).
